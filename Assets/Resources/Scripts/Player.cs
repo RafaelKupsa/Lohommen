@@ -39,7 +39,7 @@ public class Player : MonoBehaviour
 
             rb.MovePosition(closestPoint);
         }
-        else
+        else if (isGrounded)
         {
             rb.velocity = new Vector2(moveInput.x * moveSpeed, rb.velocity.y);
         }
@@ -126,7 +126,7 @@ public class Player : MonoBehaviour
 
     private void CheckGroundedStatus()
     {
-        float checkRadius = 1.2f;
+        float checkRadius = 1.3f;
         LayerMask groundLayer = LayerMask.GetMask("Solid");
         isGrounded = Physics2D.Raycast(transform.position, Vector2.down, checkRadius, groundLayer);
         Debug.Log($"Grounded: {isGrounded}");
