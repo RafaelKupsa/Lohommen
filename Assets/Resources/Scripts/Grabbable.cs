@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class Grabbable : MonoBehaviour
 {
-    public Vector2 snapOffset = Vector2.zero;
+    public Vector2 snapOffset = new(0, -0.5f);
     private Collider2D col;
     private SpriteRenderer spriteRenderer;
     private Color originalColor;

@@ -6,7 +6,8 @@ using UnityEngine.InputSystem;
 
 public class GrabbableDetector : MonoBehaviour
 {
-    public float detectionRadius = 0.75f;
+    public float jumpGrabRadius = 2f;
+    public float reachGrabRadius = 1f;
     public LayerMask grabbableLayer;
     [HideInInspector] public Grabbable currentGrabbable;
     [HideInInspector] public Grabbable lookedAtGrabbable;
@@ -14,10 +15,12 @@ public class GrabbableDetector : MonoBehaviour
     [HideInInspector] public Vector2 moveInput;
 
     private Rigidbody2D rb;
+    private Player player;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        player = GetComponent<Player>();
     }
 
     void Update()
@@ -30,7 +33,8 @@ public class GrabbableDetector : MonoBehaviour
             lookedAtGrabbable.ResetHighlightColor();
 
         grabbablesInRange.Clear();
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, detectionRadius, grabbableLayer);
+        var radius = (player.isGrounded || player.isGrabbing) ? jumpGrabRadius : reachGrabRadius;
+        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, radius, grabbableLayer);
 
         foreach (var hit in hits)
         {
@@ -53,26 +57,32 @@ public class GrabbableDetector : MonoBehaviour
 
     private Grabbable SelectGrabbableInMoveDirection()
     {
-        if (grabbablesInRange.Count == 0)
+        if (grabbablesInRange == null || grabbablesInRange.Count == 0)
             return null;
 
-        if (grabbablesInRange.Count == 1)
-            return grabbablesInRange[0];
-
         Vector2 moveDir = GetMoveDirection();
-        float maxAngle = 45f;
-        float closestAngle = maxAngle;
+        if (moveDir == Vector2.zero)
+            return null;
+
+        const float maxAngle = 45f;
+        float minSqrDistance = float.MaxValue;
         Grabbable bestGrabbable = null;
+        Vector2 origin = rb.position;
 
         foreach (var grabbable in grabbablesInRange)
         {
-            Vector2 grabbableDir = (grabbable.GetClosestPoint(rb.position) - rb.position).normalized;
+            Vector2 closestPoint = grabbable.GetClosestPoint(origin);
+            Vector2 grabbableDir = (closestPoint - origin).normalized;
             float angle = Vector2.Angle(moveDir, grabbableDir);
 
-            if (angle <= maxAngle && angle < closestAngle)
+            if (angle <= maxAngle)
             {
-                closestAngle = angle;
-                bestGrabbable = grabbable;
+                float sqrDist = (closestPoint - origin).sqrMagnitude;
+                if (sqrDist < minSqrDistance)
+                {
+                    minSqrDistance = sqrDist;
+                    bestGrabbable = grabbable;
+                }
             }
         }
 
@@ -81,31 +91,10 @@ public class GrabbableDetector : MonoBehaviour
 
     public Vector2 GetMoveDirection()
     {
-        //Vector2 lookDir = Vector2.zero;
-
-        //// Mouse input
-        //Vector2 mouseWorld = Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
-        //lookDir = (mouseWorld - (Vector2)rb.position).normalized;
-
-        //// Gamepad right stick
-        //Vector2 stickInput = Gamepad.current?.rightStick.ReadValue() ?? Vector2.zero;
-        //if (stickInput.magnitude > 0.1f)
-        //    lookDir = stickInput.normalized;
-
-        //return lookDir;
-
         Vector2 moveDir = moveInput;
 
-        // Optional: for mouse, convert delta to world direction
-        //if (Mouse.current != null)
-        //{
-        //    Vector2 mouseWorld = Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
-        //    moveDir = (mouseWorld - (Vector2)rb.position).normalized;
-        //}
-        //else if (moveInput.magnitude > 0.1f)
-        //{
-        //    moveDir = moveInput.normalized; // right stick
-        //}
+        if (moveDir == Vector2.zero)
+            moveDir = rb.velocity.normalized;
 
         return moveDir;
     }
@@ -113,6 +102,6 @@ public class GrabbableDetector : MonoBehaviour
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(transform.position, detectionRadius);
+        Gizmos.DrawWireSphere(transform.position, jumpGrabRadius);
     }
 }
